@@ -1,0 +1,50 @@
+### GET /api/price_plans
+GET http://localhost:6220/api/price_plans
+
+### POST /api/price_plan/create
+POST http://localhost:6220/api/price_plan/create
+Content-Type: application/json
+
+{
+    "name": "sms_kick_100",
+    "sms_cost": 0.45,
+    "call_cost": 2.65
+}
+
+### POST /api/price_plan/update
+POST http://localhost:6220/api/price_plan/update
+Content-Type: application/json
+
+{
+    "name": "sms_kick_100",
+    "sms_cost": 0.60,
+    "call_cost": 2.85
+}
+
+### POST /api/price_plan/delete
+POST http://localhost:6220/api/price_plan/delete
+Content-Type: application/json
+
+{
+    "id": 22
+}
+
+### POST /api/phonebill
+POST http://localhost:6220/api/phonebill
+Content-Type: application/json
+
+{
+    "price_plan": "sms_kick_100",
+    "actions": "call, sms, call"
+}
+
+###
+
+### POST /api/phonebill/calculate
+POST http://localhost:6220/api/phonebill/calculate
+Content-Type: application/json
+
+{
+    "price_plan": "sms 101",
+    "actions": "call, sms, call"
+}

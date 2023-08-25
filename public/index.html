@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Total Phone Bill</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Total phone bill price plans with SQLite</h1>
+    <h4>Author: Musa Baloyi</h4>
+    
+    <hr><br>
+
+    <!-- Form to Create a New Price Plan -->
+    <h2>new price plan:</h2>
+    <form id="create-form">
+        <label for="planName">Plan Name:</label>
+        <input type="text" id="planName" required><br>
+        <label for="smsCost">SMS Cost:</label>
+        <input type="number" id="smsCost" step="0.01" required><br>
+        <label for="callCost">Call Cost:</label>
+        <input type="number" id="callCost" step="0.01" required><br>
+        <button type="button" id="createButton">Create Price Plan</button>
+    </form>
+
+    <!-- Display Price Plans -->
+    <h2>available price plans</h2>
+    <ul id="pricePlans"></ul>
+    <h2><strong>total amount spent</strong></h2>
+    <div id="totalSpent"></div>
+    <script>
+        const pricePlansList = document.getElementById("pricePlans");
+        const totalSpentDiv = document.getElementById("totalSpent");
+        const totalSpentMap = new Map();
+
+        async function fetchAndDisplayPricePlans() {
+            try {
+                pricePlansList.innerHTML = "";
+                totalSpentDiv.innerHTML = "";
+                const response = await fetch("/api/price_plans");
+                if (!response.ok) {
+                    throw new Error(`Fetch failed with status ${response.status}`);
+                }
+                const data = await response.json();
+                
+                data.pricePlans.forEach(plan => {
+                    const listItem = document.createElement("li");
+
+                    if (typeof plan.sms_price !== 'number' || typeof plan.call_price !== 'number') {
+                        console.error('Invalid price data:', plan);
+                        return;
+                    }
+
+                    const totalBill = plan.sms_price + plan.call_price;
+                    if (isNaN(totalBill)) {
+                        console.error('Invalid totalBill calculation:', plan);
+                        return;
+                    }
+
+                    listItem.innerHTML = `
+                        Name: ${plan.plan_name}, 
+                        SMS Price: ${plan.sms_price.toFixed(2)}, 
+                        Call Price: ${plan.call_price.toFixed(2)}, 
+                        Total Bill: ${totalBill.toFixed(2)}, 
+                        <button class="deleteButton" data-id="${plan.id}">Delete</button>`;
+                    pricePlansList.appendChild(listItem);
+
+                    // Update totalSpentMap
+                    if (!totalSpentMap.has(plan.plan_name)) {
+                        totalSpentMap.set(plan.plan_name, 0);
+                    }
+                    totalSpentMap.set(plan.plan_name, totalSpentMap.get(plan.plan_name) + totalBill);
+                });
+
+                // Attach event listeners to delete buttons
+                const deleteButtons = document.querySelectorAll(".deleteButton");
+                deleteButtons.forEach(button => {
+                    button.addEventListener("click", handleDelete);
+                });
+
+                // Display total spent for each price plan
+                totalSpentDiv.innerHTML = "Total Spent per Price Plan:";
+                totalSpentMap.forEach((total, planName) => {
+                    totalSpentDiv.innerHTML += `<br>${planName}: ${total.toFixed(2)}`;
+                });
+
+                // Find the most and least expensive price plans
+                let mostExpensive = '';
+                let leastExpensive = '';
+                totalSpentMap.forEach((total, planName) => {
+                    if (!mostExpensive || total > totalSpentMap.get(mostExpensive)) {
+                        mostExpensive = planName;
+                    }
+                    if (!leastExpensive || total < totalSpentMap.get(leastExpensive)) {
+                        leastExpensive = planName;
+                    }
+                });
+
+                if (mostExpensive && leastExpensive) {
+                    totalSpentDiv.innerHTML += `<br><br>Most Expensive Plan: ${mostExpensive}`;
+                    totalSpentDiv.innerHTML += `<br>Least Expensive Plan: ${leastExpensive}`;
+                }
+            } catch (error) {
+                console.error('Error fetching and displaying price plans:', error);
+            }
+        }
+
+        async function handleDelete(event) {
+            const id = event.target.getAttribute("data-id");
+
+            const response = await fetch("/api/price_plan/delete", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    id: id
+                })
+            });
+
+            if (response.status === 200) {
+                fetchAndDisplayPricePlans();
+            } else {
+                alert("Error deleting price plan.");
+            }
+        }
+
+        async function createPricePlan() {
+            const planName = document.getElementById("planName").value;
+            const smsCost = parseFloat(document.getElementById("smsCost").value);
+            const callCost = parseFloat(document.getElementById("callCost").value);
+
+            const response = await fetch("/api/price_plan/create", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    name: planName,
+                    sms_cost: smsCost,
+                    call_cost: callCost
+                })
+            });
+
+            if (response.status === 200) {
+                fetchAndDisplayPricePlans(); // Fetch and display updated price plans
+                document.getElementById("planName").value = "";
+                document.getElementById("smsCost").value = "";
+                document.getElementById("callCost").value = "";
+            } else {
+                alert("Error creating price plan.");
+            }
+        }
+
+        document.getElementById("createButton").addEventListener("click", createPricePlan);
+        
+        // Fetch and display initial price plans
+        fetchAndDisplayPricePlans();
+    </script>
+</body>
+</html>
